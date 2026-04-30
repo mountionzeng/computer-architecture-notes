@@ -1,0 +1,184 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+
+<div style="background:#FAF3DC;border-left:4px solid #CCB570;padding:12px 16px;margin-bottom:14px;font-size:13px;line-height:1.7;">
+  <strong>Master Theorem 一句话</strong>：递归树里"节点数增长"和"子问题缩小"在比赛——比例数 <strong>r = a / b^d</strong> 决定谁赢。<br>
+  &nbsp;&nbsp;<strong>r > 1</strong>：叶子层赢 → <strong>Case 1: Θ(n^c)</strong>，c = log_b(a)<br>
+  &nbsp;&nbsp;<strong>r = 1</strong>：打平 → <strong>Case 2: Θ(n^c · log n)</strong><br>
+  &nbsp;&nbsp;<strong>r < 1</strong>：根层赢 → <strong>Case 3: Θ(f(n))</strong>
+</div>
+
+<div style="margin-bottom: 14px;">
+  <strong>挑一个递推式看</strong>：
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+    <button onclick="mtPick(0)" id="mt0" style="padding:6px 10px;">Merge: 2T(n/2)+n</button>
+    <button onclick="mtPick(1)" id="mt1" style="padding:6px 10px;">Binary: T(n/2)+1</button>
+    <button onclick="mtPick(2)" id="mt2" style="padding:6px 10px;">Karatsuba: 3T(n/2)+n</button>
+    <button onclick="mtPick(3)" id="mt3" style="padding:6px 10px;">Strassen: 7T(n/2)+n²</button>
+    <button onclick="mtPick(4)" id="mt4" style="padding:6px 10px;">根重: 2T(n/2)+n²</button>
+    <button onclick="mtPick(5)" id="mt5" style="padding:6px 10px;">4T(n/2)+n</button>
+  </div>
+</div>
+
+<div style="margin-bottom: 14px; font-size: 13px;">
+  <strong>或者自己调参数</strong>：
+  <span style="margin-left:12px;">a = <input type="range" id="mtA" min="1" max="8" value="2" step="1" oninput="mtCustom()" style="vertical-align:middle;"> <span id="aVal">2</span></span>
+  <span style="margin-left:12px;">b = <input type="range" id="mtB" min="2" max="4" value="2" step="1" oninput="mtCustom()" style="vertical-align:middle;"> <span id="bVal">2</span></span>
+  <span style="margin-left:12px;">f(n)=n^<input type="range" id="mtD" min="0" max="3" value="1" step="0.5" oninput="mtCustom()" style="vertical-align:middle;"> <span id="dVal">1</span></span>
+</div>
+
+<svg id="mt-svg" width="100%" viewBox="0 0 760 400" role="img"></svg>
+
+<div id="mt-log" style="background:#F5F4EE;border-radius:8px;padding:14px 16px;font-size:13px;min-height:130px;margin-top:12px;line-height:1.7;"></div>
+
+</div>
+
+<script>
+const mtsvg = document.getElementById('mt-svg');
+const mtlog = document.getElementById('mt-log');
+
+const presets = [
+  {a:2, b:2, d:1, name:'Merge Sort',   rec:'2T(n/2) + n'},
+  {a:1, b:2, d:0, name:'Binary Search',rec:'T(n/2) + 1'},
+  {a:3, b:2, d:1, name:'Karatsuba',    rec:'3T(n/2) + n'},
+  {a:7, b:2, d:2, name:'Strassen',     rec:'7T(n/2) + n²'},
+  {a:2, b:2, d:2, name:'根重例',        rec:'2T(n/2) + n²'},
+  {a:4, b:2, d:1, name:'叶重例',        rec:'4T(n/2) + n'}
+];
+
+function mtPick(i) {
+  for (let k=0;k<6;k++) document.getElementById('mt'+k).style.fontWeight = k===i?'600':'400';
+  const p = presets[i];
+  document.getElementById('mtA').value = p.a;
+  document.getElementById('mtB').value = p.b;
+  document.getElementById('mtD').value = p.d;
+  document.getElementById('aVal').textContent = p.a;
+  document.getElementById('bVal').textContent = p.b;
+  document.getElementById('dVal').textContent = p.d;
+  render(p.a, p.b, p.d, p.name, p.rec);
+}
+
+function mtCustom() {
+  const a = parseInt(document.getElementById('mtA').value);
+  const b = parseInt(document.getElementById('mtB').value);
+  const d = parseFloat(document.getElementById('mtD').value);
+  document.getElementById('aVal').textContent = a;
+  document.getElementById('bVal').textContent = b;
+  document.getElementById('dVal').textContent = d;
+  // unhighlight presets
+  for (let k=0;k<6;k++) document.getElementById('mt'+k).style.fontWeight = '400';
+  render(a, b, d, '自定义', `${a}T(n/${b}) + n^${d}`);
+}
+
+function render(a, b, d, name, rec) {
+  const n = 64;  // base size
+  const r = a / Math.pow(b, d);
+  const c = Math.log(a) / Math.log(b);
+  const depth = Math.floor(Math.log(n)/Math.log(b));
+
+  // per-level total cost
+  const costs = [];
+  for (let k = 0; k <= depth; k++) {
+    const nodes = Math.pow(a, k);
+    const size = n / Math.pow(b, k);
+    const perNode = (k === depth) ? 1 : Math.pow(size, d);
+    costs.push(nodes * perNode);
+  }
+  const maxCost = Math.max(...costs);
+
+  // case classification
+  let caseNum, answer, ratio_status;
+  const eps = 0.05;
+  if (Math.abs(r - 1) < eps) {
+    caseNum = 2; ratio_status = 'r ≈ 1（打平）';
+    if (Math.abs(c) < 0.01) answer = `Θ(log n)`;
+    else if (Math.abs(c - 1) < 0.01) answer = `Θ(n · log n)`;
+    else answer = `Θ(n^${c.toFixed(2)} · log n)`;
+  } else if (r > 1) {
+    caseNum = 1; ratio_status = `r = ${r.toFixed(2)} > 1（叶子主导）`;
+    if (Math.abs(c) < 0.01) answer = `Θ(1)`;
+    else if (Math.abs(c - 1) < 0.01) answer = `Θ(n)`;
+    else if (Math.abs(c - Math.round(c)) < 0.01) answer = `Θ(n^${Math.round(c)})`;
+    else answer = `Θ(n^${c.toFixed(3)})`;
+  } else {
+    caseNum = 3; ratio_status = `r = ${r.toFixed(2)} < 1（根主导）`;
+    if (Math.abs(d) < 0.01) answer = `Θ(1)`;
+    else if (Math.abs(d - 1) < 0.01) answer = `Θ(n)`;
+    else if (Math.abs(d - Math.round(d)) < 0.01) answer = `Θ(n^${Math.round(d)})`;
+    else answer = `Θ(n^${d})`;
+  }
+
+  // draw bar chart of per-level costs
+  let svg = '';
+  const chartX = 60, chartY = 60, chartW = 460, chartH = 280;
+  // axes
+  svg += `<line x1="${chartX}" y1="${chartY+chartH}" x2="${chartX+chartW}" y2="${chartY+chartH}" stroke="#888"/>`;
+  svg += `<line x1="${chartX}" y1="${chartY}" x2="${chartX}" y2="${chartY+chartH}" stroke="#888"/>`;
+  svg += `<text x="${chartX-8}" y="${chartY-8}" font-size="11" fill="#666">每层总代价</text>`;
+  svg += `<text x="${chartX+chartW/2}" y="${chartY+chartH+25}" text-anchor="middle" font-size="11" fill="#666">递归深度（层）</text>`;
+
+  const barW = chartW / costs.length;
+  let barColor;
+  if (caseNum === 1) barColor = '#0F6E56';   // leaves win — green
+  else if (caseNum === 2) barColor = '#185FA5'; // balanced — blue
+  else barColor = '#A32D2D';                  // root wins — red
+
+  costs.forEach((cost, k) => {
+    const h = (cost / maxCost) * chartH;
+    const x = chartX + k * barW + barW * 0.15;
+    const y = chartY + chartH - h;
+    svg += `<rect x="${x}" y="${y}" width="${barW * 0.7}" height="${h}" fill="${barColor}" opacity="0.75"/>`;
+    svg += `<text x="${x + barW*0.35}" y="${chartY+chartH+15}" text-anchor="middle" font-size="10" fill="#666">${k}</text>`;
+    if (cost === maxCost) {
+      svg += `<text x="${x + barW*0.35}" y="${y - 5}" text-anchor="middle" font-size="10" fill="${barColor}" font-weight="600">${cost.toFixed(0)}</text>`;
+    }
+  });
+
+  // annotation: shape interpretation
+  let shapeText;
+  if (caseNum === 1) shapeText = '↗ 越深越高 → 叶子主导';
+  else if (caseNum === 2) shapeText = '═ 各层等高 → 打平';
+  else shapeText = '↘ 越深越低 → 根主导';
+  svg += `<text x="${chartX+chartW/2}" y="${chartY+chartH+45}" text-anchor="middle" font-size="13" fill="${barColor}" font-weight="600">${shapeText}</text>`;
+
+  // right panel: numbers
+  const px = 560;
+  svg += `<text x="${px}" y="50" font-size="14" font-weight="600" fill="#444">${name}</text>`;
+  svg += `<text x="${px}" y="72" font-size="13" fill="#444" font-family="monospace">T(n) = ${rec}</text>`;
+
+  svg += `<text x="${px}" y="105" font-size="12" fill="#666">a = ${a}（每次分裂数）</text>`;
+  svg += `<text x="${px}" y="125" font-size="12" fill="#666">b = ${b}（每份缩小因子）</text>`;
+  svg += `<text x="${px}" y="145" font-size="12" fill="#666">d = ${d}（合并代价指数）</text>`;
+
+  svg += `<text x="${px}" y="180" font-size="13" fill="#185FA5" font-family="monospace">c = log_${b}(${a}) = ${c.toFixed(3)}</text>`;
+  svg += `<text x="${px}" y="205" font-size="13" font-family="monospace" font-weight="600" fill="${barColor}">r = a/b^d = ${r.toFixed(3)}</text>`;
+  svg += `<text x="${px}" y="225" font-size="11" fill="#666">${ratio_status}</text>`;
+
+  // verdict box
+  svg += `<rect x="${px-5}" y="260" width="180" height="110" fill="${caseNum===1?'#E8F5EE':caseNum===2?'#E8F0FA':'#F8E5E5'}" stroke="${barColor}" stroke-width="1.5" rx="4"/>`;
+  svg += `<text x="${px+5}" y="285" font-size="13" font-weight="600" fill="${barColor}">Case ${caseNum}</text>`;
+  svg += `<text x="${px+5}" y="310" font-size="13" fill="#444">T(n) =</text>`;
+  svg += `<text x="${px+5}" y="335" font-size="16" font-weight="600" fill="${barColor}" font-family="monospace">${answer}</text>`;
+
+  mtsvg.innerHTML = svg;
+
+  // log explanation
+  let log = `<strong>${name}</strong>: T(n) = ${rec}<br><br>`;
+  log += `<strong>第 1 步</strong>：算比例数 <code>r = a / b^d = ${a} / ${b}^${d} = ${r.toFixed(3)}</code><br>`;
+  if (caseNum === 1) {
+    log += `<strong>第 2 步</strong>：r > 1 → 每深一层代价 × ${r.toFixed(2)} → <strong>越往下越大 → 叶子层主导</strong><br>`;
+    log += `<strong>第 3 步</strong>：叶子数量 = a^depth = n^log_b(a) = n^${c.toFixed(3)} → 总代价 = <span style="color:${barColor};font-weight:600">${answer}</span><br><br>`;
+    log += `<span style="color:#666">直觉：递归调用爆炸的速度（×${a}/层）压过了子问题缩小的好处（÷${Math.pow(b,d).toFixed(1)}/层）。</span>`;
+  } else if (caseNum === 2) {
+    log += `<strong>第 2 步</strong>：r ≈ 1 → 每层代价相同 → <strong>各层均摊</strong><br>`;
+    log += `<strong>第 3 步</strong>：每层 ≈ n^${c.toFixed(2)}，共 log_${b}(n) 层 → 总代价 = <span style="color:${barColor};font-weight:600">${answer}</span><br><br>`;
+    log += `<span style="color:#666">直觉：递归扩张的力量恰好抵消子问题缩小的力量，所有层贡献相等，多了个 log n 因子。</span>`;
+  } else {
+    log += `<strong>第 2 步</strong>：r < 1 → 每深一层代价 × ${r.toFixed(2)} → <strong>越往下越小 → 根层主导</strong><br>`;
+    log += `<strong>第 3 步</strong>：根的代价 = f(n) = n^${d} → 总代价 = <span style="color:${barColor};font-weight:600">${answer}</span><br><br>`;
+    log += `<span style="color:#666">直觉：合并步太重了（n^${d}），递归调用带来的子问题代价加起来还不到根的一个常数倍。</span>`;
+  }
+  mtlog.innerHTML = log;
+}
+
+mtPick(0);
+</script>

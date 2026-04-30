@@ -1,0 +1,100 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="pushStack()" style="padding: 6px 12px;">Stack: push</button>
+  <button onclick="popStack()" style="padding: 6px 12px;">Stack: pop</button>
+  <span style="width: 16px;"></span>
+  <button onclick="enqueue()" style="padding: 6px 12px;">Queue: enqueue</button>
+  <button onclick="dequeue()" style="padding: 6px 12px;">Queue: dequeue</button>
+  <button onclick="resetAll()" style="padding: 6px 12px;">重置</button>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+  <div>
+    <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">栈 (Stack) — LIFO</div>
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 12px;">同一端进出，最后进的最先出</div>
+    <div id="stack-container" style="position: relative; height: 280px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; display: flex; flex-direction: column-reverse; align-items: center; gap: 4px;">
+      <div style="position: absolute; top: 8px; right: 12px; font-size: 11px; color: var(--color-text-tertiary);">↑ top (进出口)</div>
+    </div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 6px;">应用：函数调用、撤销、括号匹配、DFS</div>
+  </div>
+
+  <div>
+    <div style="font-size: 14px; font-weight: 500; margin-bottom: 8px;">队列 (Queue) — FIFO</div>
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 12px;">一端进、另一端出，公平排队</div>
+    <div id="queue-container" style="position: relative; height: 280px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px;">
+      <div style="position: absolute; top: 8px; right: 12px; font-size: 11px; color: var(--color-text-tertiary);">↓ front (出口)</div>
+      <div style="position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: var(--color-text-tertiary);">↑ rear (入口)</div>
+    </div>
+    <div style="font-size: 11px; color: var(--color-text-tertiary); margin-top: 6px;">应用：BFS、任务调度、打印队列</div>
+  </div>
+</div>
+
+<script>
+let stackData = [];
+let queueData = [];
+let counter = 1;
+
+function makeBlock(val, color) {
+  return `<div style="width: 80px; height: 32px; background: ${color}; color: var(--color-text-info); border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px; transition: all 0.3s;">${val}</div>`;
+}
+
+function renderStack() {
+  const c = document.getElementById('stack-container');
+  c.querySelectorAll('.block').forEach(el => el.remove());
+  stackData.forEach((v, i) => {
+    const div = document.createElement('div');
+    div.className = 'block';
+    div.style.cssText = 'width: 80px; height: 32px; background: #B5D4F4; color: #042C53; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px;';
+    if (i === stackData.length - 1) {
+      div.style.background = '#378ADD';
+      div.style.color = '#fff';
+    }
+    div.textContent = v;
+    c.appendChild(div);
+  });
+}
+
+function renderQueue() {
+  const c = document.getElementById('queue-container');
+  c.querySelectorAll('.block').forEach(el => el.remove());
+  queueData.forEach((v, i) => {
+    const div = document.createElement('div');
+    div.className = 'block';
+    div.style.cssText = 'width: 80px; height: 32px; background: #9FE1CB; color: #04342C; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px;';
+    if (i === 0) {
+      div.style.background = '#1D9E75';
+      div.style.color = '#fff';
+    }
+    div.textContent = v;
+    c.appendChild(div);
+  });
+}
+
+function pushStack() {
+  if (stackData.length >= 6) return;
+  stackData.push(counter++);
+  renderStack();
+}
+function popStack() {
+  stackData.pop();
+  renderStack();
+}
+function enqueue() {
+  if (queueData.length >= 6) return;
+  queueData.push(counter++);
+  renderQueue();
+}
+function dequeue() {
+  queueData.shift();
+  renderQueue();
+}
+function resetAll() {
+  stackData = []; queueData = []; counter = 1;
+  renderStack(); renderQueue();
+}
+
+stackData = [1, 2, 3];
+queueData = [1, 2, 3];
+counter = 4;
+renderStack();
+renderQueue();
+</script>

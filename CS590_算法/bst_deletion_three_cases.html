@@ -1,0 +1,74 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="showCase(1)" id="b1" style="padding: 6px 12px;">情况 1: 叶节点</button>
+  <button onclick="showCase(2)" id="b2" style="padding: 6px 12px;">情况 2: 一个子节点</button>
+  <button onclick="showCase(3)" id="b3" style="padding: 6px 12px;">情况 3: 两个子节点</button>
+</div>
+
+<svg id="del-svg" width="100%" viewBox="0 0 680 380" role="img">
+<title>BST deletion cases</title>
+<desc>Three deletion scenarios shown sequentially: leaf, one child, two children.</desc>
+</svg>
+
+<div id="del-log" style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; font-size: 14px; min-height: 80px; margin-top: 12px;"></div>
+
+<script>
+const svg = document.getElementById('del-svg');
+const log = document.getElementById('del-log');
+
+function node(x, y, val, color, r=26) {
+  return `<g class="c-${color}"><circle cx="${x}" cy="${y}" r="${r}" stroke-width="${color==='red'||color==='amber'?1.5:0.5}"/><text class="th" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${val}</text></g>`;
+}
+function edge(x1,y1,x2,y2,dashed=false) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#888780" stroke-width="1" ${dashed?'stroke-dasharray="3 3" opacity="0.4"':''}/>`;
+}
+
+function showCase(c) {
+  document.querySelectorAll('button').forEach(b => b.style.fontWeight = '400');
+  document.getElementById('b'+c).style.fontWeight = '500';
+  
+  if (c === 1) {
+    svg.innerHTML = `
+      ${edge(340,60,220,150)}${edge(340,60,460,150)}
+      ${edge(220,180,140,260)}${edge(220,180,300,260)}
+      ${node(340,60,50,'gray')}
+      ${node(220,170,30,'gray')}
+      ${node(460,170,70,'gray')}
+      ${node(140,270,20,'gray')}
+      ${node(300,270,40,'red')}
+      <text class="ts" x="340" y="350" text-anchor="middle" fill="#A32D2D">要删除节点 40 (叶子)</text>
+    `;
+    log.innerHTML = '<strong>情况 1：叶节点</strong><br>最简单。直接把父节点指向它的指针置为 null，节点消失。<br><span style="color: var(--color-text-tertiary); font-size: 12px;">删除 40 后：树变成 50 → (30 → 20) + 70</span>';
+  } else if (c === 2) {
+    svg.innerHTML = `
+      ${edge(340,60,220,150)}${edge(340,60,460,150)}
+      ${edge(220,180,300,260)}
+      ${node(340,60,50,'gray')}
+      ${node(220,170,30,'red')}
+      ${node(460,170,70,'gray')}
+      ${node(300,270,40,'amber')}
+      <text class="ts" x="340" y="335" text-anchor="middle" fill="#A32D2D">要删除节点 30，它只有右孩子 40</text>
+      <text class="ts" x="340" y="355" text-anchor="middle" fill="#854F0B">→ 让 50 直接指向 40，跳过 30</text>
+    `;
+    log.innerHTML = '<strong>情况 2：只有一个子节点</strong><br>把这唯一的子节点 "提上来" 顶替被删的位置——它的父亲指针绕过被删节点，直接指向它的孩子。<br><span style="color: var(--color-text-tertiary); font-size: 12px;">这跟链表删除一个节点是同一个操作：父亲的指针越过它指向它的下一个。</span>';
+  } else {
+    svg.innerHTML = `
+      ${edge(340,60,200,150)}${edge(340,60,480,150)}
+      ${edge(200,180,120,260)}${edge(200,180,280,260)}
+      ${edge(280,290,260,360)}
+      ${edge(480,180,400,260)}${edge(480,180,560,260)}
+      ${node(340,60,50,'red')}
+      ${node(200,170,30,'gray')}
+      ${node(480,170,70,'gray')}
+      ${node(120,270,20,'gray')}
+      ${node(280,270,40,'gray')}
+      ${node(260,370,35,'gray',22)}
+      ${node(400,270,60,'amber')}
+      ${node(560,270,80,'gray')}
+      <text class="ts" x="400" y="240" text-anchor="middle" fill="#854F0B">↑ 中序后继</text>
+    `;
+    log.innerHTML = '<strong>情况 3：两个子节点</strong><br>找<strong>中序后继</strong>（右子树中最小的节点，这里是 60，从 70 一直往左走）<br>用它<strong>替换</strong>掉被删节点的值（50 → 60）<br>再<strong>递归删除</strong>原来的后继节点（这时它最多只有一个右子节点，回到情况 1 或 2）<br><span style="color: var(--color-text-tertiary); font-size: 12px;">为什么用中序后继？因为它是 "右子树里最小的"，恰好满足 BST 性质——比左子树所有元素都大，比右子树剩下所有元素都小。</span>';
+  }
+}
+
+showCase(1);
+</script>

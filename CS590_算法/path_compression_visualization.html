@@ -1,0 +1,77 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="pcStep(0)" id="pc0" style="padding: 6px 12px;">原始树</button>
+  <button onclick="pcStep(1)" id="pc1" style="padding: 6px 12px;">find(F) 上爬</button>
+  <button onclick="pcStep(2)" id="pc2" style="padding: 6px 12px;">压缩后</button>
+</div>
+
+<svg id="pc-svg" width="100%" viewBox="0 0 680 380" role="img">
+<title>Path compression on find</title>
+<desc>During find(F), all nodes on the path from F to the root get re-pointed directly to the root.</desc>
+</svg>
+
+<div id="pc-log" style="background: var(--color-background-secondary); border-radius: 8px; padding: 14px 16px; font-size: 13px; min-height: 80px; margin-top: 12px;"></div>
+
+<script>
+const pcsvg = document.getElementById('pc-svg');
+const pclog = document.getElementById('pc-log');
+
+function pcnode(x, y, val, color, r=22) {
+  return `<g class="c-${color}"><circle cx="${x}" cy="${y}" r="${r}" stroke-width="${color==='red'||color==='amber'?1.5:0.5}"/><text class="th" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${val}</text></g>`;
+}
+function pcedge(x1,y1,x2,y2, color='#888780', dashed=false) {
+  const d = dashed ? 'stroke-dasharray="4 3"' : '';
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="${color==='#888780'?1:1.5}" ${d} marker-end="url(#pc-arr)"/>`;
+}
+const pcdefs = `<defs><marker id="pc-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+
+function pcStep(s) {
+  for (let i=0; i<3; i++) document.getElementById('pc'+i).style.fontWeight = i===s ? '500' : '400';
+  
+  let svg = pcdefs;
+  let log = '';
+  
+  if (s === 0) {
+    svg += pcedge(340, 100, 340, 145);
+    svg += pcedge(340, 190, 340, 235);
+    svg += pcedge(340, 280, 340, 325);
+    svg += pcnode(340, 80, 'A', 'gray');
+    svg += pcnode(340, 170, 'B', 'gray');
+    svg += pcnode(340, 260, 'C', 'gray');
+    svg += pcnode(340, 350, 'F', 'gray');
+    svg += `<text class="ts" x="430" y="80" fill="#888780">root</text>`;
+    svg += `<text class="ts" x="430" y="350" fill="#888780">深度 3</text>`;
+    
+    log = '<strong>原始链状结构</strong>: F → C → B → A。每次 find(F) 要爬 3 步。';
+  } else if (s === 1) {
+    svg += pcedge(340, 100, 340, 145);
+    svg += pcedge(340, 190, 340, 235);
+    svg += pcedge(340, 280, 340, 325);
+    svg += pcnode(340, 80, 'A', 'amber');
+    svg += pcnode(340, 170, 'B', 'amber');
+    svg += pcnode(340, 260, 'C', 'amber');
+    svg += pcnode(340, 350, 'F', 'amber');
+    svg += `<path d="M 360 350 Q 440 200 360 80" fill="none" stroke="#185FA5" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#pc-arr)"/>`;
+    svg += `<text class="ts" x="500" y="220" fill="#185FA5" font-weight="500">find 一路向上</text>`;
+    svg += `<text class="ts" x="500" y="240" fill="#185FA5">"经过的节点都记下来了"</text>`;
+    
+    log = '<strong>find 沿父亲链上爬</strong>，到达根 A。<br>关键观察：路径上的 F、C、B 此刻都"知道根是谁"——可以顺手把它们的父亲指针改掉。';
+  } else {
+    svg += pcedge(220, 100, 200, 145);
+    svg += pcedge(280, 100, 280, 145);
+    svg += pcedge(320, 100, 360, 145);
+    svg += pcnode(300, 80, 'A', 'teal');
+    svg += pcnode(190, 170, 'B', 'teal');
+    svg += pcnode(280, 170, 'C', 'teal');
+    svg += pcnode(370, 170, 'F', 'teal');
+    svg += `<text class="ts" x="450" y="170" fill="#0F6E56" font-weight="500">现在它们都直连根</text>`;
+    svg += `<text class="ts" x="450" y="190" fill="#0F6E56">下次 find 任意一个 → O(1)</text>`;
+    
+    log = '<strong>路径上的所有节点都被"摊平"</strong>，直接指向根。<br>这次 find 操作比原来贵了一点（要修改指针），但后续所有访问这些节点的 find 都变成 1 步。<br><span style="color: var(--color-text-tertiary); font-size: 12px;">这种"贵的操作让后续操作变快"的特征，正是<strong>摊还分析</strong>的对象。</span>';
+  }
+  
+  pcsvg.innerHTML = svg;
+  pclog.innerHTML = log;
+}
+
+pcStep(0);
+</script>

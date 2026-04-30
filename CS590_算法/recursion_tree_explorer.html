@@ -1,0 +1,155 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+
+<div style="margin-bottom: 12px;">
+  <strong>选择递推式</strong>：
+  <button onclick="rtMode(0)" id="rt0" style="padding:6px 12px;margin-left:6px;">Merge Sort: T(n)=2T(n/2)+n</button>
+  <button onclick="rtMode(1)" id="rt1" style="padding:6px 12px;">Karatsuba: T(n)=3T(n/2)+n</button>
+  <button onclick="rtMode(2)" id="rt2" style="padding:6px 12px;">Strassen: T(n)=7T(n/2)+n²</button>
+</div>
+
+<svg id="rt-svg" width="100%" viewBox="0 0 880 460" role="img">
+<title>Recursion tree for D&C recurrences</title>
+</svg>
+
+<div id="rt-log" style="background:#F5F4EE;border-radius:8px;padding:14px 16px;font-size:13px;min-height:180px;margin-top:12px;line-height:1.7;"></div>
+
+</div>
+
+<script>
+const rtsvg = document.getElementById('rt-svg');
+const rtlog = document.getElementById('rt-log');
+
+const modes = [
+  {
+    name: 'Merge Sort',
+    a: 2, b: 2, fLabel: 'n', fAt: n => n,
+    n0: 16, depth: 4,
+    cExp: 'log₂(2) = 1', c: 1,
+    fVsNc: 'f(n) = n = n¹ = Θ(n^c)',
+    masterCase: 'Case 2',
+    answer: 'Θ(n log n)',
+    insight: '每层总代价都是 n（节点数 × 节点代价 = 2^k × n/2^k = n），共 log n 层 → n·log n。这是分治"完美平衡"的标志。'
+  },
+  {
+    name: 'Karatsuba',
+    a: 3, b: 2, fLabel: 'n', fAt: n => n,
+    n0: 8, depth: 3,
+    cExp: 'log₂(3) ≈ 1.585', c: 1.585,
+    fVsNc: 'f(n) = n¹ < n^1.585 → f = O(n^(c-ε))',
+    masterCase: 'Case 1',
+    answer: 'Θ(n^1.585)',
+    insight: '叶子主导：每层节点数 3^k 增长比 size 缩减 (n/2^k) 快 → 总代价由叶子层 3^(log n) = n^1.585 决定。'
+  },
+  {
+    name: 'Strassen',
+    a: 7, b: 2, fLabel: 'n²', fAt: n => n*n,
+    n0: 8, depth: 3,
+    cExp: 'log₂(7) ≈ 2.807', c: 2.807,
+    fVsNc: 'f(n) = n² < n^2.807 → f = O(n^(c-ε))',
+    masterCase: 'Case 1',
+    answer: 'Θ(n^2.807)',
+    insight: '同 Karatsuba：节点数爆炸（7 倍/层）压过合并代价（n²）→ 叶子主导。每"省一次乘法"都是指数级收益。'
+  }
+];
+
+function rtMode(m) {
+  for (let i = 0; i < 3; i++) document.getElementById('rt'+i).style.fontWeight = i===m ? '600' : '400';
+
+  const M = modes[m];
+  const n = M.n0;
+  const depth = M.depth;
+
+  let svg = '';
+
+  // headers for level summary on right
+  svg += `<text x="600" y="30" font-size="13" font-weight="600" fill="#444">每层代价分析</text>`;
+  svg += `<text x="600" y="48" font-size="11" fill="#666">level | nodes | size | per-node | total</text>`;
+  svg += `<line x1="600" y1="54" x2="870" y2="54" stroke="#888"/>`;
+
+  let totalSum = 0;
+  const levelTotals = [];
+
+  // draw tree
+  // Place nodes per level. Use a simplified layout — at each level, evenly space the nodes.
+  // To keep readable for a=7 and depth=3, we limit displayed nodes per level (show first few + ...)
+  const yStep = 90;
+  const xMargin = 30;
+  const xMax = 560;
+
+  for (let lvl = 0; lvl <= depth; lvl++) {
+    const nodesAtLevel = Math.pow(M.a, lvl);
+    const sizeAtLevel = n / Math.pow(M.b, lvl);
+    const isLeaf = lvl === depth;
+    const perNode = isLeaf ? 1 : M.fAt(sizeAtLevel);
+    const levelTotal = nodesAtLevel * perNode;
+    levelTotals.push(levelTotal);
+    totalSum += levelTotal;
+
+    const y = 50 + lvl * yStep;
+
+    // Show up to 8 nodes per level visually; if more, show ellipsis
+    const showCount = Math.min(nodesAtLevel, 7);
+    const totalWidth = xMax - xMargin;
+    for (let i = 0; i < showCount; i++) {
+      const x = xMargin + (showCount > 1 ? (totalWidth) * i / (showCount - 1) : totalWidth/2);
+      // line to parent
+      if (lvl > 0) {
+        const parentIdx = Math.floor(i * Math.pow(M.a, lvl-1) / showCount);
+        const showCountParent = Math.min(Math.pow(M.a, lvl-1), 7);
+        const px = xMargin + (showCountParent > 1 ? (totalWidth) * parentIdx / (showCountParent - 1) : totalWidth/2);
+        const py = 50 + (lvl-1) * yStep;
+        svg += `<line x1="${px}" y1="${py+18}" x2="${x}" y2="${y-18}" stroke="#999" stroke-width="1"/>`;
+      }
+      // node
+      const r = isLeaf ? 12 : 18;
+      let fill = '#FAF3DC', stroke = '#CCB570';
+      if (isLeaf) { fill = '#9FE1CB'; stroke = '#0F6E56'; }
+      svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+      svg += `<text x="${x}" y="${y+4}" text-anchor="middle" font-size="11" font-weight="600">${isLeaf ? '1' : (sizeAtLevel < 1 ? sizeAtLevel.toFixed(1) : sizeAtLevel)}</text>`;
+    }
+    if (nodesAtLevel > showCount) {
+      const lastX = xMax;
+      svg += `<text x="${lastX + 5}" y="${y+4}" font-size="13" fill="#888">... ${nodesAtLevel} 个</text>`;
+    }
+
+    // level summary on right panel
+    const ySum = 70 + lvl * 28;
+    svg += `<text x="600" y="${ySum}" font-size="11" fill="#444">${lvl}</text>`;
+    svg += `<text x="630" y="${ySum}" font-size="11" fill="#444">${nodesAtLevel}</text>`;
+    svg += `<text x="680" y="${ySum}" font-size="11" fill="#444">${sizeAtLevel < 1 ? sizeAtLevel.toFixed(2) : sizeAtLevel}</text>`;
+    svg += `<text x="730" y="${ySum}" font-size="11" fill="#444">${isLeaf ? '1' : perNode}</text>`;
+    const isMax = false; // mark later
+    svg += `<text x="800" y="${ySum}" font-size="11" font-weight="600" fill="#185FA5">${levelTotal}</text>`;
+  }
+
+  // total line
+  const yTotal = 70 + (depth+1) * 28;
+  svg += `<line x1="600" y1="${yTotal-12}" x2="870" y2="${yTotal-12}" stroke="#888"/>`;
+  svg += `<text x="600" y="${yTotal+4}" font-size="11" fill="#444" font-weight="600">总和 = ${totalSum}（n=${n} 时）</text>`;
+
+  rtsvg.innerHTML = svg;
+
+  // log
+  let log = `<strong>${M.name}</strong>: T(n) = ${M.a}·T(n/${M.b}) + ${M.fLabel}<br>`;
+  log += `<strong>临界指数</strong> c = log_${M.b}(${M.a}) = ${M.cExp}<br>`;
+  log += `<strong>比较</strong>：${M.fVsNc}<br>`;
+  log += `<strong>Master ${M.masterCase}</strong> → <span style="color:#0F6E56;font-weight:600">T(n) = ${M.answer}</span><br><br>`;
+  log += `<strong style="color:#185FA5">直觉</strong>：${M.insight}<br><br>`;
+
+  // per-level explanation
+  log += `<strong>逐层观察（n=${n}）</strong>：<br>`;
+  if (m === 0) {
+    log += `&nbsp;&nbsp;每层代价都是 ${n}（看右侧表格）→ <strong>各层均衡</strong>，没有哪一层主导。<br>`;
+    log += `&nbsp;&nbsp;层数 = log₂(n) = ${Math.log2(n)} → 总和 = n·log n`;
+  } else if (m === 1) {
+    log += `&nbsp;&nbsp;层 0: ${n}，层 1: ${1.5*n}，层 2: ${2.25*n}... 每层增长 1.5 倍<br>`;
+    log += `&nbsp;&nbsp;→ <strong>叶子层主导</strong>。叶子有 3^${depth} = ${Math.pow(3,depth)} 个，每个 O(1) → 总 ≈ 3^log n = n^log₂3`;
+  } else {
+    log += `&nbsp;&nbsp;层 0: n²=${n*n}，层 1: 7·(n/2)² = ${7*(n/2)*(n/2)} = 1.75n²<br>`;
+    log += `&nbsp;&nbsp;→ <strong>叶子层主导</strong>。叶子 7^${depth} = ${Math.pow(7,depth)} 个 → 总 ≈ n^log₂7 ≈ n^2.807`;
+  }
+  rtlog.innerHTML = log;
+}
+
+rtMode(0);
+</script>

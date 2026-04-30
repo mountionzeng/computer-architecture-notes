@@ -1,0 +1,69 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="run('pre')" style="padding: 6px 12px;">前序 (根→左→右)</button>
+  <button onclick="run('in')" style="padding: 6px 12px;">中序 (左→根→右)</button>
+  <button onclick="run('post')" style="padding: 6px 12px;">后序 (左→右→根)</button>
+  <button onclick="run('level')" style="padding: 6px 12px;">层序 (BFS)</button>
+  <button onclick="reset()" style="padding: 6px 12px;">重置</button>
+</div>
+
+<svg id="tree-svg" width="100%" viewBox="0 0 680 320" role="img" style="margin-bottom: 12px;">
+<title>Binary tree traversal animation</title>
+<desc>Tree with 7 nodes; visualization highlights nodes in the order each traversal visits them.</desc>
+
+<line x1="340" y1="60" x2="220" y2="130" stroke="#888780" stroke-width="1"/>
+<line x1="340" y1="60" x2="460" y2="130" stroke="#888780" stroke-width="1"/>
+<line x1="220" y1="160" x2="140" y2="230" stroke="#888780" stroke-width="1"/>
+<line x1="220" y1="160" x2="300" y2="230" stroke="#888780" stroke-width="1"/>
+<line x1="460" y1="160" x2="540" y2="230" stroke="#888780" stroke-width="1"/>
+
+<g id="n-A" class="c-gray"><circle cx="340" cy="60" r="26" stroke-width="0.5"/><text class="th" x="340" y="60" text-anchor="middle" dominant-baseline="central">A</text></g>
+<g id="n-B" class="c-gray"><circle cx="220" cy="145" r="26" stroke-width="0.5"/><text class="th" x="220" y="145" text-anchor="middle" dominant-baseline="central">B</text></g>
+<g id="n-C" class="c-gray"><circle cx="460" cy="145" r="26" stroke-width="0.5"/><text class="th" x="460" y="145" text-anchor="middle" dominant-baseline="central">C</text></g>
+<g id="n-D" class="c-gray"><circle cx="140" cy="245" r="26" stroke-width="0.5"/><text class="th" x="140" y="245" text-anchor="middle" dominant-baseline="central">D</text></g>
+<g id="n-E" class="c-gray"><circle cx="300" cy="245" r="26" stroke-width="0.5"/><text class="th" x="300" y="245" text-anchor="middle" dominant-baseline="central">E</text></g>
+<g id="n-F" class="c-gray"><circle cx="540" cy="245" r="26" stroke-width="0.5"/><text class="th" x="540" y="245" text-anchor="middle" dominant-baseline="central">F</text></g>
+</svg>
+
+<div id="output" style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 14px 16px; min-height: 70px; font-size: 14px;">
+  <div style="color: var(--color-text-secondary); font-size: 12px; margin-bottom: 6px;">访问顺序</div>
+  <div id="seq" style="font-family: var(--font-mono); font-size: 16px; color: var(--color-text-primary); letter-spacing: 2px;">点击上方按钮开始</div>
+  <div id="explain" style="font-size: 12px; color: var(--color-text-tertiary); margin-top: 8px;"></div>
+</div>
+
+<script>
+const orders = {
+  pre:   { seq: ['A','B','D','E','C','F'], desc: '根 → 左子树 → 右子树。常用于复制树。' },
+  in:    { seq: ['D','B','E','A','C','F'], desc: '左子树 → 根 → 右子树。在 BST 上得到升序序列。' },
+  post:  { seq: ['D','E','B','F','C','A'], desc: '左子树 → 右子树 → 根。常用于删除树、表达式求值。' },
+  level: { seq: ['A','B','C','D','E','F'], desc: '一层一层从左到右。本质是 BFS，用队列实现。' }
+};
+
+let timers = [];
+
+function reset() {
+  timers.forEach(clearTimeout);
+  timers = [];
+  ['A','B','C','D','E','F'].forEach(n => {
+    const el = document.getElementById('n-'+n);
+    el.setAttribute('class', 'c-gray');
+  });
+  document.getElementById('seq').textContent = '点击上方按钮开始';
+  document.getElementById('explain').textContent = '';
+}
+
+function run(type) {
+  reset();
+  const { seq, desc } = orders[type];
+  document.getElementById('explain').textContent = desc;
+  const seqEl = document.getElementById('seq');
+  seqEl.textContent = '';
+  
+  seq.forEach((node, i) => {
+    timers.push(setTimeout(() => {
+      const el = document.getElementById('n-'+node);
+      el.setAttribute('class', 'c-amber');
+      seqEl.textContent = seq.slice(0, i+1).join(' → ');
+    }, i * 600));
+  });
+}
+</script>

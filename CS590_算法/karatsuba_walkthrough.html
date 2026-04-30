@@ -1,0 +1,123 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+
+<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+  <button onclick="kaStep(0)" id="ka0" style="padding:6px 12px;">①问题</button>
+  <button onclick="kaStep(1)" id="ka1" style="padding:6px 12px;">②朴素：4 次乘法</button>
+  <button onclick="kaStep(2)" id="ka2" style="padding:6px 12px;">③Karatsuba 巧思</button>
+  <button onclick="kaStep(3)" id="ka3" style="padding:6px 12px;">④代入计算</button>
+  <button onclick="kaStep(4)" id="ka4" style="padding:6px 12px;">⑤为什么从 4→3 这么重要</button>
+</div>
+
+<svg id="ka-svg" width="100%" viewBox="0 0 760 420" role="img">
+<title>Karatsuba multiplication walkthrough</title>
+</svg>
+
+<div id="ka-log" style="background:#F5F4EE;border-radius:8px;padding:14px 16px;font-size:13px;min-height:140px;margin-top:12px;line-height:1.7;"></div>
+
+</div>
+
+<script>
+const kasvg = document.getElementById('ka-svg');
+const kalog = document.getElementById('ka-log');
+
+function kaStep(s) {
+  for (let i=0;i<5;i++) document.getElementById('ka'+i).style.fontWeight = i===s?'600':'400';
+  let svg = '';
+  let log = '';
+
+  // Common: show 1234 × 5678
+  if (s === 0) {
+    svg += `<text x="380" y="60" text-anchor="middle" font-size="22" font-weight="600">计算 1234 × 5678 = ?</text>`;
+    svg += `<text x="380" y="100" text-anchor="middle" font-size="14" fill="#666">小学方法 O(n²)：4 位 × 4 位 = 16 个一位乘法</text>`;
+    svg += `<text x="380" y="140" text-anchor="middle" font-size="14" fill="#444">能不能用分治做更快？</text>`;
+    svg += `<text x="380" y="200" text-anchor="middle" font-size="13" fill="#185FA5">分治思路：把 4 位拆成两个 2 位</text>`;
+    svg += `<g font-size="16" font-family="monospace">`;
+    svg += `<text x="380" y="245" text-anchor="middle">1234 = <tspan fill="#185FA5" font-weight="600">12</tspan>·100 + <tspan fill="#0F6E56" font-weight="600">34</tspan></text>`;
+    svg += `<text x="380" y="275" text-anchor="middle">5678 = <tspan fill="#185FA5" font-weight="600">56</tspan>·100 + <tspan fill="#0F6E56" font-weight="600">78</tspan></text>`;
+    svg += `</g>`;
+    svg += `<text x="380" y="320" text-anchor="middle" font-size="13" fill="#666">用 x = x₁·B + x₀, y = y₁·B + y₀，B = 100</text>`;
+    log = `<strong>背景</strong>：n 位整数相乘。小学竖式 O(n²)。<br>分治先把数字一分为二，看能否做得更快。<br>问题转化为：用 2 位 × 2 位的乘法构造 4 位 × 4 位的答案。`;
+  } else if (s === 1) {
+    svg += `<text x="380" y="40" text-anchor="middle" font-size="16" font-weight="600">朴素分治：展开 (x₁B + x₀)(y₁B + y₀)</text>`;
+    svg += `<text x="380" y="100" text-anchor="middle" font-size="18" font-family="monospace">x·y = <tspan fill="#A32D2D" font-weight="600">x₁y₁</tspan>·B² + (<tspan fill="#A32D2D" font-weight="600">x₁y₀</tspan> + <tspan fill="#A32D2D" font-weight="600">x₀y₁</tspan>)·B + <tspan fill="#A32D2D" font-weight="600">x₀y₀</tspan></text>`;
+    svg += `<text x="380" y="160" text-anchor="middle" font-size="14" fill="#A32D2D" font-weight="600">需要 4 次乘法：x₁y₁, x₁y₀, x₀y₁, x₀y₀</text>`;
+    svg += `<text x="380" y="220" text-anchor="middle" font-size="13" fill="#666">递推：T(n) = 4·T(n/2) + O(n)</text>`;
+    svg += `<text x="380" y="245" text-anchor="middle" font-size="13" fill="#666">Master c = log₂4 = 2 → T(n) = O(n²)</text>`;
+    svg += `<text x="380" y="290" text-anchor="middle" font-size="14" fill="#A32D2D" font-weight="600">和小学竖式一样，没省！</text>`;
+    svg += `<text x="380" y="330" text-anchor="middle" font-size="13" fill="#185FA5">问题是：4 这个常数能不能砍下来？</text>`;
+    log = `<strong>朴素分治的失败</strong>：直接展开 (x₁B+x₀)(y₁B+y₀) 需要 4 次小乘法。<br>递推 T(n) = 4·T(n/2) + O(n) → Master Case 1 → O(n²)。<br>跟竖式一样慢——分治没带来好处。<br>Karatsuba 的巧思：能不能<strong>用 3 次乘法算出这 4 项</strong>？`;
+  } else if (s === 2) {
+    svg += `<text x="380" y="35" text-anchor="middle" font-size="16" font-weight="600">Karatsuba 关键代数恒等式</text>`;
+    svg += `<g font-size="15" font-family="monospace">`;
+    svg += `<text x="60" y="80" fill="#185FA5">P₁ = x₁ · y₁                          (1次乘)</text>`;
+    svg += `<text x="60" y="110" fill="#185FA5">P₂ = x₀ · y₀                          (1次乘)</text>`;
+    svg += `<text x="60" y="140" fill="#185FA5">P₃ = (x₁ + x₀) · (y₁ + y₀)            (1次乘)</text>`;
+    svg += `<text x="60" y="170" fill="#A32D2D" font-weight="600">观察：P₃ = x₁y₁ + x₁y₀ + x₀y₁ + x₀y₀</text>`;
+    svg += `<text x="60" y="200" fill="#A32D2D" font-weight="600">     = P₁ + (x₁y₀ + x₀y₁) + P₂</text>`;
+    svg += `<text x="60" y="230" fill="#0F6E56" font-weight="600">→ 中间项 = P₃ − P₁ − P₂        (减法,免费!)</text>`;
+    svg += `</g>`;
+    svg += `<text x="380" y="290" text-anchor="middle" font-size="14" fill="#0F6E56" font-weight="600">3 次乘法 + 几次加减 → 算出 4 项！</text>`;
+    svg += `<text x="380" y="330" text-anchor="middle" font-size="13" fill="#666">x·y = P₁·B² + (P₃ − P₁ − P₂)·B + P₂</text>`;
+    svg += `<text x="380" y="360" text-anchor="middle" font-size="13" fill="#666">递推：T(n) = 3·T(n/2) + O(n) → O(n^1.585)</text>`;
+    log = `<strong>核心观察</strong>：(x₁+x₀)(y₁+y₀) 展开后包含 4 项之和，<br>所以中间项 (x₁y₀ + x₀y₁) = P₃ − P₁ − P₂，<br>不需要额外的两次乘法——<strong>用加减法换乘法</strong>。<br>加减法相比乘法是"白嫖"的——单位时间内能做的多得多。`;
+  } else if (s === 3) {
+    const x1=12, x0=34, y1=56, y0=78;
+    const P1 = x1*y1, P2 = x0*y0, P3 = (x1+x0)*(y1+y0);
+    const mid = P3 - P1 - P2;
+    const ans = P1*10000 + mid*100 + P2;
+    svg += `<text x="380" y="35" text-anchor="middle" font-size="16" font-weight="600">代入 1234 × 5678（B=100, x₁=12, x₀=34, y₁=56, y₀=78）</text>`;
+    svg += `<g font-size="14" font-family="monospace">`;
+    svg += `<text x="60" y="80" fill="#185FA5">P₁ = 12·56 = ${P1}</text>`;
+    svg += `<text x="60" y="105" fill="#185FA5">P₂ = 34·78 = ${P2}</text>`;
+    svg += `<text x="60" y="130" fill="#185FA5">P₃ = (12+34)·(56+78) = 46·134 = ${P3}</text>`;
+    svg += `<text x="60" y="160" fill="#0F6E56">中间项 = P₃ − P₁ − P₂ = ${P3} − ${P1} − ${P2} = ${mid}</text>`;
+    svg += `<text x="60" y="195" fill="#444">x·y = P₁·100² + 中间·100 + P₂</text>`;
+    svg += `<text x="60" y="220" fill="#444">    = ${P1}·10000 + ${mid}·100 + ${P2}</text>`;
+    svg += `<text x="60" y="245" fill="#444">    = ${P1*10000} + ${mid*100} + ${P2}</text>`;
+    svg += `<text x="60" y="275" fill="#A32D2D" font-weight="600">    = ${ans}</text>`;
+    svg += `</g>`;
+    svg += `<text x="380" y="320" text-anchor="middle" font-size="14" fill="#0F6E56" font-weight="600">验证：1234 × 5678 = ${1234*5678} ✓</text>`;
+    svg += `<text x="380" y="360" text-anchor="middle" font-size="13" fill="#666">只用了 3 次"小整数乘法"：12·56, 34·78, 46·134</text>`;
+    log = `<strong>验算成功</strong>：用 3 次乘法 + 一些加减 = 7006652，与 1234×5678 一致。<br>注意 P₃ = 46·134 这次乘法，操作数比原来的 12,56 等略大（多 1 位），但仍是 n/2 量级。<br>递归到底，每层都省 1 次乘法 → 累计指数级收益。`;
+  } else {
+    svg += `<text x="380" y="40" text-anchor="middle" font-size="16" font-weight="600">为什么"省 1 次乘法"如此重要</text>`;
+
+    // bar chart of complexities at different n
+    const nVals = [10, 100, 1000, 10000];
+    const cells = [
+      {label:'朴素 O(n²)', exp: n => n*n, color: '#A32D2D'},
+      {label:'Karatsuba O(n^1.585)', exp: n => Math.pow(n, 1.585), color: '#185FA5'},
+      {label:'FFT O(n log n)', exp: n => n*Math.log2(n), color: '#0F6E56'}
+    ];
+
+    let yBase = 100;
+    svg += `<text x="60" y="${yBase-10}" font-size="12" fill="#666">n</text>`;
+    cells.forEach((c, i) => {
+      svg += `<text x="${260 + i*150}" y="${yBase-10}" font-size="12" fill="${c.color}" font-weight="600">${c.label}</text>`;
+    });
+
+    nVals.forEach((n, row) => {
+      const y = yBase + 30 + row*55;
+      svg += `<text x="60" y="${y}" font-size="13" font-family="monospace" fill="#444">n = ${n}</text>`;
+      cells.forEach((c, i) => {
+        const v = c.exp(n);
+        const log10 = Math.log10(v);
+        const barLen = Math.min(110, log10 * 14);
+        svg += `<rect x="${260 + i*150}" y="${y-12}" width="${barLen}" height="16" fill="${c.color}" opacity="0.7"/>`;
+        svg += `<text x="${260 + i*150 + barLen + 4}" y="${y+1}" font-size="11" fill="#444">${v.toExponential(1)}</text>`;
+      });
+    });
+
+    svg += `<text x="380" y="370" text-anchor="middle" font-size="13" fill="#185FA5">每多一层递归都省一次乘法 → 复合下来变成 n^(log₂3) ≈ n^1.585</text>`;
+    log = `<strong>这条思路开启了一个时代</strong>：<br>
+    1962 年 Karatsuba 之前，所有人都以为 n 位整数乘法必须 O(n²)。Karatsuba（24 岁的研究生）用一个代数等式把它降到 O(n^1.585)，震惊学界。<br>
+    后续：Toom-Cook（更细分块）→ Schönhage-Strassen（FFT，O(n log n log log n)）→ 2019 Harvey-van der Hoeven 真正的 O(n log n)。<br>
+    <strong>更广启示</strong>：分治算法的核心不是"分"，而是"合并步是否更廉价"。Strassen 矩阵乘法（8→7 次乘）是同样思路。`;
+  }
+
+  kasvg.innerHTML = svg;
+  kalog.innerHTML = log;
+}
+
+kaStep(0);
+</script>

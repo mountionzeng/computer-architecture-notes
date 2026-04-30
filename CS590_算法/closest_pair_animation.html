@@ -1,0 +1,160 @@
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
+
+<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+  <button onclick="cpStep(0)" id="cp0" style="padding:6px 12px;">①初始点集</button>
+  <button onclick="cpStep(1)" id="cp1" style="padding:6px 12px;">②按 x 中线切分</button>
+  <button onclick="cpStep(2)" id="cp2" style="padding:6px 12px;">③递归找左、右最近</button>
+  <button onclick="cpStep(3)" id="cp3" style="padding:6px 12px;">④取 d=min；画 2d 条带</button>
+  <button onclick="cpStep(4)" id="cp4" style="padding:6px 12px;">⑤条带内按 y 排序，每点比 7 个</button>
+  <button onclick="cpStep(5)" id="cp5" style="padding:6px 12px;">⑥得到全局最近点对</button>
+</div>
+
+<svg id="cp-svg" width="100%" viewBox="0 0 720 440" role="img">
+<title>Closest pair of points by D&C</title>
+</svg>
+
+<div id="cp-log" style="background:#F5F4EE;border-radius:8px;padding:14px 16px;font-size:13px;min-height:140px;margin-top:12px;line-height:1.7;"></div>
+
+</div>
+
+<script>
+const cpsvg = document.getElementById('cp-svg');
+const cplog = document.getElementById('cp-log');
+
+// 12 points (x, y) in [40, 680] × [40, 380]
+const pts = [
+  {n:'A', x: 80, y:120},
+  {n:'B', x:130, y:280},
+  {n:'C', x:200, y: 70},
+  {n:'D', x:240, y:200},
+  {n:'E', x:300, y:340},
+  {n:'F', x:340, y:160},
+  {n:'G', x:380, y:240},  // crosses median
+  {n:'H', x:420, y:170},  // candidate cross-pair with F
+  {n:'I', x:480, y:330},
+  {n:'J', x:540, y: 90},
+  {n:'K', x:600, y:240},
+  {n:'L', x:660, y:140}
+];
+// median x
+const xs = pts.map(p => p.x).sort((a,b)=>a-b);
+const medianX = (xs[5] + xs[6]) / 2;
+
+// dist function
+function dist(a,b){ return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2); }
+
+// best in left, best in right (precomputed for visualization)
+const left = pts.filter(p => p.x <= medianX);
+const right = pts.filter(p => p.x > medianX);
+
+function bestPair(arr) {
+  let best = {a:null,b:null,d:Infinity};
+  for (let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++){
+    const d = dist(arr[i], arr[j]);
+    if (d < best.d) best = {a:arr[i], b:arr[j], d};
+  }
+  return best;
+}
+
+const bestL = bestPair(left);
+const bestR = bestPair(right);
+const d = Math.min(bestL.d, bestR.d);
+
+// strip points (within d of median)
+const strip = pts.filter(p => Math.abs(p.x - medianX) <= d).sort((a,b)=>a.y-b.y);
+
+// best across the strip
+let bestStrip = {a:null,b:null,d:Infinity};
+for (let i=0;i<strip.length;i++) {
+  for (let j=i+1;j<strip.length && (strip[j].y - strip[i].y) <= d; j++) {
+    const dij = dist(strip[i], strip[j]);
+    if (dij < bestStrip.d) bestStrip = {a:strip[i], b:strip[j], d:dij};
+  }
+}
+
+// global
+const candidates = [bestL, bestR, bestStrip].filter(c => c.a !== null);
+const global = candidates.reduce((a,c) => c.d < a.d ? c : a);
+
+function cpStep(s) {
+  for (let i=0;i<6;i++) document.getElementById('cp'+i).style.fontWeight = i===s?'600':'400';
+  let svg = '';
+
+  // background frame
+  svg += `<rect x="20" y="20" width="680" height="400" fill="white" stroke="#ccc"/>`;
+
+  // step-specific overlays
+  if (s >= 1) {
+    // median line
+    svg += `<line x1="${medianX}" y1="20" x2="${medianX}" y2="420" stroke="#888" stroke-width="2" stroke-dasharray="6 4"/>`;
+    svg += `<text x="${medianX+5}" y="35" font-size="11" fill="#666">x = ${medianX.toFixed(0)} (中线)</text>`;
+  }
+  if (s >= 3) {
+    // strip
+    svg += `<rect x="${medianX-d}" y="20" width="${2*d}" height="400" fill="#9FE1CB" fill-opacity="0.18" stroke="#0F6E56" stroke-dasharray="3 3"/>`;
+    svg += `<text x="${medianX-d+5}" y="${410}" font-size="11" fill="#0F6E56">条带宽 = 2d ≈ ${(2*d).toFixed(0)}</text>`;
+  }
+
+  // best left/right (steps 2+)
+  if (s === 2 || s === 3) {
+    if (bestL.a) svg += `<line x1="${bestL.a.x}" y1="${bestL.a.y}" x2="${bestL.b.x}" y2="${bestL.b.y}" stroke="#185FA5" stroke-width="2"/>`;
+    if (bestR.a) svg += `<line x1="${bestR.a.x}" y1="${bestR.a.y}" x2="${bestR.b.x}" y2="${bestR.b.y}" stroke="#185FA5" stroke-width="2"/>`;
+  }
+
+  // strip y-sort visualization (step 4)
+  if (s === 4) {
+    // for each strip point, draw lines to next 7 (or stop when y diff > d)
+    for (let i=0;i<strip.length;i++) {
+      for (let j=i+1;j<Math.min(i+8, strip.length);j++) {
+        if (strip[j].y - strip[i].y > d) break;
+        svg += `<line x1="${strip[i].x}" y1="${strip[i].y}" x2="${strip[j].x}" y2="${strip[j].y}" stroke="#FAC775" stroke-width="1" opacity="0.7"/>`;
+      }
+    }
+  }
+
+  // global pair (step 5)
+  if (s === 5 && global.a) {
+    svg += `<line x1="${global.a.x}" y1="${global.a.y}" x2="${global.b.x}" y2="${global.b.y}" stroke="#A32D2D" stroke-width="3"/>`;
+    const mx=(global.a.x+global.b.x)/2, my=(global.a.y+global.b.y)/2;
+    svg += `<text x="${mx+10}" y="${my-5}" font-size="13" fill="#A32D2D" font-weight="600">最近: ${global.d.toFixed(2)}</text>`;
+  }
+
+  // points
+  for (const p of pts) {
+    let fill = '#F1EFE8', stroke = '#888', r = 7;
+    if (s >= 1) {
+      if (p.x <= medianX) { fill = '#E8F0FA'; stroke = '#185FA5'; }
+      else { fill = '#FAF3DC'; stroke = '#CCB570'; }
+    }
+    if (s >= 3 && Math.abs(p.x - medianX) <= d) {
+      fill = '#9FE1CB'; stroke = '#0F6E56';
+    }
+    if (s === 5 && (p === global.a || p === global.b)) {
+      fill = '#F0997B'; stroke = '#993C1D'; r = 9;
+    }
+    svg += `<circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`;
+    svg += `<text x="${p.x}" y="${p.y-12}" text-anchor="middle" font-size="11" fill="#333">${p.n}</text>`;
+  }
+
+  cpsvg.innerHTML = svg;
+
+  // log
+  let log = '';
+  if (s === 0) {
+    log = `<strong>问题</strong>：12 个点，找最近的两个。<br>暴力 O(n²)，目标用分治做到 <strong>O(n log n)</strong>。`;
+  } else if (s === 1) {
+    log = `<strong>分</strong>：按 x 排序，取中线 x = ${medianX.toFixed(0)} 把点切成左右两半。<br>左 ${left.length} 个（蓝），右 ${right.length} 个（金）。<br>这一步是分治的"divide"。`;
+  } else if (s === 2) {
+    log = `<strong>治</strong>（递归）：在左、右子集分别求最近点对。<br>&nbsp;&nbsp;左侧最近：${bestL.a.n}-${bestL.b.n}，距离 ${bestL.d.toFixed(2)}<br>&nbsp;&nbsp;右侧最近：${bestR.a.n}-${bestR.b.n}，距离 ${bestR.d.toFixed(2)}<br>这两个递归都是 T(n/2)。`;
+  } else if (s === 3) {
+    log = `<strong>合</strong>第 1 步：取 d = min(${bestL.d.toFixed(2)}, ${bestR.d.toFixed(2)}) = <strong>${d.toFixed(2)}</strong>。<br>真正的全局最近 ≤ d。如果有更近的点对，<strong>必须横跨中线</strong>，且两点都在距中线 ≤ d 的<strong>条带</strong>内。<br>条带外的点不可能更近 → 直接排除。`;
+  } else if (s === 4) {
+    log = `<strong>合</strong>第 2 步：把条带内的点按 y 排序后，依序扫描。<br>每个点<strong>只需比较后续 7 个</strong>（图中黄线）即可——这是经典的"7 点引理"。<br><strong>为什么是 7</strong>：宽 2d、高 d 的矩形最多塞 8 个点（每个 d/2 × d/2 小格最多 1 点），减去自己 → 7。<br>这一步是 O(n)，不是 O(n²) → 整个 combine 是 O(n)。`;
+  } else {
+    log = `<strong>结果</strong>：最近点对 = ${global.a.n}-${global.b.n}，距离 ${global.d.toFixed(2)}。<br><br><strong>复杂度推导</strong><br>T(n) = 2T(n/2) + O(n)<br>= O(n log n)（Master Case 2）<br><br><strong>关键 insight</strong>：合并步看似要检查所有跨界对（O(n²)），但通过 y 排序 + 7 点引理，只需 O(n)。这是这道题最妙的地方。`;
+  }
+  cplog.innerHTML = log;
+}
+
+cpStep(0);
+</script>

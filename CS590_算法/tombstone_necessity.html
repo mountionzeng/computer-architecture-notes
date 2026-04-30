@@ -1,0 +1,99 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="tomb(0)" id="tb0" style="padding: 6px 12px;">①初始</button>
+  <button onclick="tomb(1)" id="tb1" style="padding: 6px 12px;">②直接删 A</button>
+  <button onclick="tomb(2)" id="tb2" style="padding: 6px 12px;">③查找 B 失败</button>
+  <button onclick="tomb(3)" id="tb3" style="padding: 6px 12px;">④用墓碑修复</button>
+</div>
+
+<svg id="tomb-svg" width="100%" viewBox="0 0 680 280" role="img">
+<title>Tombstone deletion</title>
+<desc>Demonstrating why open addressing must use a tombstone marker for deletion.</desc>
+</svg>
+
+<div id="tomb-log" style="background: var(--color-background-secondary); border-radius: 8px; padding: 14px 16px; font-size: 13px; min-height: 100px; margin-top: 12px;"></div>
+
+<script>
+const tsvg = document.getElementById('tomb-svg');
+const tlog = document.getElementById('tomb-log');
+
+function tcell(x, content, color, idx) {
+  const fillMap = {
+    'empty': '#F1EFE8',
+    'data': '#FAC775',
+    'tomb': '#F0997B',
+    'highlight': '#9FE1CB',
+    'fail': '#F09595'
+  };
+  const strokeMap = {
+    'empty': '#888780',
+    'data': '#854F0B',
+    'tomb': '#993C1D',
+    'highlight': '#0F6E56',
+    'fail': '#A32D2D'
+  };
+  const fill = fillMap[color];
+  const stroke = strokeMap[color];
+  const sw = (color === 'highlight' || color === 'fail') ? 1.5 : 0.5;
+  return `<rect x="${x}" y="80" width="60" height="40" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" rx="4"/>
+  <text class="ts" x="${x+30}" y="100" text-anchor="middle" dominant-baseline="central">${content}</text>
+  <text class="ts" x="${x+30}" y="142" text-anchor="middle" fill="#888780">[${idx}]</text>`;
+}
+
+function tomb(s) {
+  for(let i=0;i<4;i++) document.getElementById('tb'+i).style.fontWeight = i===s?'500':'400';
+  
+  let svg = '';
+  let log = '';
+  
+  if (s === 0) {
+    svg += tcell(80, '_', 'empty', 0);
+    svg += tcell(160, 'A', 'data', 1);
+    svg += tcell(240, 'B', 'data', 2);
+    svg += tcell(320, 'C', 'data', 3);
+    svg += tcell(400, '_', 'empty', 4);
+    svg += `<text class="ts" x="340" y="180" text-anchor="middle">A、B、C 的 hash 都是 1（线性探测放在 1, 2, 3）</text>`;
+    svg += `<text class="ts" x="340" y="200" text-anchor="middle" fill="#888780">查找 C：从 [1] 开始探测，看 A → B → C，找到 ✓</text>`;
+    
+    log = `<strong>① 初始状态</strong><br>三个 key A、B、C 的 hash 都是 1，按线性探测依次落入 [1][2][3]。<br>这是它们的"探测链"——查找时必须沿着这条链走。`;
+  } else if (s === 1) {
+    svg += tcell(80, '_', 'empty', 0);
+    svg += tcell(160, '_', 'empty', 1);
+    svg += tcell(240, 'B', 'data', 2);
+    svg += tcell(320, 'C', 'data', 3);
+    svg += tcell(400, '_', 'empty', 4);
+    svg += `<text class="ts" x="340" y="180" text-anchor="middle" fill="#A32D2D">直接清空 [1] —— 看起来没问题对吧？</text>`;
+    
+    log = `<strong>② 删除 A：直接清空 [1]</strong><br>看起来很合理——A 走了，[1] 变空。<br>但是你看这个状态，<strong>探测链已经被切断了</strong>——下一步看后果。`;
+  } else if (s === 2) {
+    svg += tcell(80, '_', 'empty', 0);
+    svg += tcell(160, '_', 'fail', 1);
+    svg += tcell(240, 'B', 'data', 2);
+    svg += tcell(320, 'C', 'data', 3);
+    svg += tcell(400, '_', 'empty', 4);
+    svg += `<text class="ts" x="340" y="180" text-anchor="middle" fill="#A32D2D">查找 B：从 hash=1 开始</text>`;
+    svg += `<text class="ts" x="340" y="200" text-anchor="middle" fill="#A32D2D">看到 [1] 是空 → 结论：B 不存在</text>`;
+    svg += `<text class="ts" x="340" y="222" text-anchor="middle" fill="#A32D2D">但 B 明明在 [2]！</text>`;
+    
+    log = `<strong>③ 查找 B：找不到了</strong><br>查找代码逻辑：算 hash=1 → 检查 [1]：空 → "B 不存在"，停止探测。<br><strong>但 B 明明在 [2]！</strong><br>问题：删除 A 切断了"探测链"，查找代码看到空槽就停。`;
+  } else {
+    svg += tcell(80, '_', 'empty', 0);
+    svg += tcell(160, '☠', 'tomb', 1);
+    svg += tcell(240, 'B', 'data', 2);
+    svg += tcell(320, 'C', 'data', 3);
+    svg += tcell(400, '_', 'empty', 4);
+    svg += `<text class="ts" x="340" y="180" text-anchor="middle" fill="#0F6E56">放墓碑 ☠ 而不是清空</text>`;
+    svg += `<text class="ts" x="340" y="200" text-anchor="middle" fill="#0F6E56">查找：遇到 ☠ 继续探测（链没断）</text>`;
+    svg += `<text class="ts" x="340" y="222" text-anchor="middle" fill="#0F6E56">插入：遇到 ☠ 可重用此位置</text>`;
+    
+    log = `<strong>④ 解决方案：墓碑（tombstone）</strong><br>删除时不真清空，而是放一个特殊标记 ☠。<br><br>
+    <strong>查找规则</strong>：遇到 ☠ <em>继续</em>探测（探测链保住了）<br>
+    <strong>插入规则</strong>：遇到 ☠ 可以填入（位置可重用）<br>
+    这就是 Python dict、Go map 等开放寻址实现都做的事。`;
+  }
+  
+  tsvg.innerHTML = svg;
+  tlog.innerHTML = log;
+}
+
+tomb(0);
+</script>

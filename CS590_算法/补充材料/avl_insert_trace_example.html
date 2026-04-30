@@ -1,0 +1,115 @@
+<div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+  <button onclick="trace(0)" id="t0" style="padding: 6px 12px;">①下降</button>
+  <button onclick="trace(1)" id="t1" style="padding: 6px 12px;">②插入</button>
+  <button onclick="trace(2)" id="t2" style="padding: 6px 12px;">③回溯到 20</button>
+  <button onclick="trace(3)" id="t3" style="padding: 6px 12px;">④回溯到 30</button>
+  <button onclick="trace(4)" id="t4" style="padding: 6px 12px;">⑤旋转完成</button>
+</div>
+
+<svg id="trace-svg" width="100%" viewBox="0 0 680 320" role="img">
+<title>AVL insert trace</title>
+<desc>Step-by-step insertion of key 5 triggering LL imbalance and right rotation.</desc>
+</svg>
+
+<div id="trace-log" style="background: var(--color-background-secondary); border-radius: 8px; padding: 14px 16px; font-size: 13px; min-height: 100px; margin-top: 12px;"></div>
+
+<script>
+const tsvg = document.getElementById('trace-svg');
+const tlog = document.getElementById('trace-log');
+
+function nd(x, y, val, color, h=null, r=24) {
+  let extra = '';
+  if (h !== null) {
+    extra = `<text class="ts" x="${x+r+8}" y="${y-r+8}" text-anchor="start" fill="#854F0B">h=${h}</text>`;
+  }
+  return `<g class="c-${color}"><circle cx="${x}" cy="${y}" r="${r}" stroke-width="${color==='amber'||color==='red'?1.5:0.5}"/><text class="th" x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central">${val}</text></g>${extra}`;
+}
+
+function ed(x1,y1,x2,y2, color='#888780') {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1"/>`;
+}
+
+function trace(s) {
+  for (let i=0; i<5; i++) {
+    document.getElementById('t'+i).style.fontWeight = i===s ? '500' : '400';
+  }
+  
+  let svg = '';
+  let log = '';
+  
+  if (s === 0) {
+    svg += ed(340, 80, 280, 160);
+    svg += nd(340, 80, '30', 'amber', 1);
+    svg += nd(280, 180, '20', 'gray', 0);
+    svg += `<path d="M 360 100 Q 410 140 300 165" fill="none" stroke="#185FA5" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#trace-a)"/>`;
+    svg += `<text class="ts" x="430" y="130" fill="#185FA5">5 &lt; 30, 走左</text>`;
+    svg += `<text class="ts" x="430" y="190" fill="#185FA5">5 &lt; 20, 走左</text>`;
+    svg += `<defs><marker id="trace-a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
+    
+    log = `<strong>① 下降阶段（标准 BST 查找）</strong><br>从根开始递归。<br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">insert(30, 5) → 5&lt;30 → insert(20, 5) → 5&lt;20 → insert(None, 5)</span><br>
+    <span style="color: var(--color-text-tertiary); font-size: 12px;">注意调用栈现在堆了 3 层：30 → 20 → None。代码现在到了最深的递归层。</span>`;
+  } else if (s === 1) {
+    svg += ed(340, 80, 280, 160);
+    svg += ed(280, 200, 220, 260);
+    svg += nd(340, 80, '30', 'gray', 1);
+    svg += nd(280, 180, '20', 'gray', 0);
+    svg += nd(220, 280, '5', 'teal', 0, 20);
+    svg += `<text class="ts" x="240" y="280" text-anchor="end" fill="#0F6E56">新节点</text>`;
+    
+    log = `<strong>② 创建新节点</strong><br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">insert(None, 5)</span> 命中第一个 if，<strong>创建新节点 5 并返回</strong>。<br>
+    回到调用者：<span style="font-family: var(--font-mono); font-size: 12px;">node.left = insert(node.left, 5)</span> 把 20.left 设为新节点。<br>
+    <span style="color: var(--color-text-tertiary); font-size: 12px;">现在树是合法 BST，但还没检查平衡——递归还在 unwind。</span>`;
+  } else if (s === 2) {
+    svg += ed(340, 80, 280, 160);
+    svg += ed(280, 200, 220, 260);
+    svg += nd(340, 80, '30', 'gray', 2);
+    svg += nd(280, 180, '20', 'amber', 1);
+    svg += nd(220, 280, '5', 'gray', 0, 20);
+    svg += `<text class="ts" x="430" y="180" fill="#854F0B">node = 20</text>`;
+    svg += `<text class="ts" x="430" y="200" fill="#854F0B">height: 0 → 1</text>`;
+    svg += `<text class="ts" x="430" y="220" fill="#854F0B">bf = 1 - 0 = 1 ✓</text>`;
+    
+    log = `<strong>③ 回溯到 20，更新+检查</strong><br>
+    递归 unwind 到 20 这一层。代码执行：<br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">20.height = max(h(5), h(None)) + 1 = max(0, -1) + 1 = 1</span><br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">bf = h(left) - h(right) = 0 - (-1) = 1</span><br>
+    <span style="color: #0F6E56; font-size: 12px;">|bf| ≤ 1 → 不失衡，直接 return node</span>`;
+  } else if (s === 3) {
+    svg += ed(340, 80, 280, 160);
+    svg += ed(280, 200, 220, 260);
+    svg += nd(340, 80, '30', 'red', 2);
+    svg += nd(280, 180, '20', 'gray', 1);
+    svg += nd(220, 280, '5', 'gray', 0, 20);
+    svg += `<text class="ts" x="430" y="80" fill="#A32D2D">node = 30</text>`;
+    svg += `<text class="ts" x="430" y="100" fill="#A32D2D">height: 1 → 2</text>`;
+    svg += `<text class="ts" x="430" y="120" fill="#A32D2D" font-weight="500">bf = 2 - 0 = 2 ✗</text>`;
+    svg += `<text class="ts" x="430" y="142" fill="#A32D2D">key=5 &lt; node.left.key=20</text>`;
+    svg += `<text class="ts" x="430" y="160" fill="#A32D2D" font-weight="500">→ LL → 右旋!</text>`;
+    
+    log = `<strong>④ 回溯到 30，发现失衡</strong><br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">30.height = max(h(20), h(None)) + 1 = max(1, -1) + 1 = 2</span><br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">bf = 2 - 0 = 2  &nbsp;←  超过 1 ✗</span><br>
+    判断方向：<span style="font-family: var(--font-mono); font-size: 12px;">bf &gt; 1 且 key &lt; node.left.key</span> → 命中 LL 分支<br>
+    <span style="color: #0F6E56; font-size: 12px;">→ 调用 rotate_right(30)</span>`;
+  } else {
+    svg += ed(280, 80, 220, 160);
+    svg += ed(280, 80, 340, 160);
+    svg += nd(280, 80, '20', 'teal', 1);
+    svg += nd(220, 180, '5', 'teal', 0, 20);
+    svg += nd(340, 180, '30', 'teal', 0);
+    svg += `<text class="ts" x="280" y="270" text-anchor="middle">高度从 2 降到 1，平衡恢复</text>`;
+    
+    log = `<strong>⑤ 旋转完成，返回新根</strong><br>
+    <span style="font-family: var(--font-mono); font-size: 12px;">rotate_right(30)</span> 返回 20 作为新的子树根。<br>
+    由于 30 是整棵树的根，调用者（最外层 main 函数）收到返回值 20，把<strong>树根指针</strong>更新为 20。<br>
+    <span style="color: #0F6E56; font-size: 12px;">现在树高 = 1，整棵树仍是合法 BST 且平衡。整个 insert 调用结束。</span>`;
+  }
+  
+  tsvg.innerHTML = svg;
+  tlog.innerHTML = log;
+}
+
+trace(0);
+</script>

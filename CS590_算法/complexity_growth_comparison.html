@@ -1,0 +1,123 @@
+<div style="margin-bottom: 16px;">
+  <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;">
+    <label style="font-size: 13px; color: var(--color-text-secondary);">最大 n 值</label>
+    <input type="range" min="10" max="100" value="20" step="1" id="nRange" style="flex: 1; min-width: 200px;" />
+    <span id="nVal" style="font-size: 14px; font-weight: 500; min-width: 30px;">20</span>
+  </div>
+  <div style="font-size: 12px; color: var(--color-text-tertiary);">拖动滑块改变 n 的范围。注意当 n 增大时，慢的函数会被压扁到几乎看不见。</div>
+</div>
+
+<div style="position: relative; width: 100%; height: 380px;">
+  <canvas id="growthChart" role="img" aria-label="Comparison of common time complexity growth rates">Comparison of O(1), O(log n), O(sqrt n), O(n), O(n log n), O(n²), O(n³), O(2ⁿ), O(n!).</canvas>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--color-text-secondary);">
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #888780;"></span>O(1)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #1D9E75;"></span>O(log n)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #639922;"></span>O(√n)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #378ADD;"></span>O(n)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #7F77DD;"></span>O(n log n)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #BA7517;"></span>O(n²)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #D85A30;"></span>O(n³)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #D4537E;"></span>O(2ⁿ)</span>
+  <span style="display: flex; align-items: center; gap: 5px;"><span style="width: 12px; height: 12px; border-radius: 2px; background: #E24B4A;"></span>O(n!)</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+(function() {
+  function factorial(n) {
+    let r = 1;
+    for (let i = 2; i <= n; i++) r *= i;
+    return r;
+  }
+  
+  function buildData(maxN) {
+    const labels = [];
+    const data = {
+      const1: [], logN: [], sqrtN: [], n: [], nlogn: [],
+      n2: [], n3: [], pow2: [], fact: []
+    };
+    const step = Math.max(1, Math.floor(maxN / 50));
+    for (let i = 1; i <= maxN; i += step) {
+      labels.push(i);
+      data.const1.push(1);
+      data.logN.push(Math.log2(i));
+      data.sqrtN.push(Math.sqrt(i));
+      data.n.push(i);
+      data.nlogn.push(i * Math.log2(i));
+      data.n2.push(i * i);
+      data.n3.push(i * i * i);
+      data.pow2.push(i <= 50 ? Math.pow(2, i) : null);
+      data.fact.push(i <= 20 ? factorial(i) : null);
+    }
+    return { labels, data };
+  }
+  
+  const ctx = document.getElementById('growthChart');
+  let chart;
+  
+  function render(maxN) {
+    const { labels, data } = buildData(maxN);
+    const datasets = [
+      { label: 'O(1)', data: data.const1, borderColor: '#888780' },
+      { label: 'O(log n)', data: data.logN, borderColor: '#1D9E75' },
+      { label: 'O(√n)', data: data.sqrtN, borderColor: '#639922' },
+      { label: 'O(n)', data: data.n, borderColor: '#378ADD' },
+      { label: 'O(n log n)', data: data.nlogn, borderColor: '#7F77DD' },
+      { label: 'O(n²)', data: data.n2, borderColor: '#BA7517' },
+      { label: 'O(n³)', data: data.n3, borderColor: '#D85A30' },
+      { label: 'O(2ⁿ)', data: data.pow2, borderColor: '#D4537E', borderDash: [5, 3] },
+      { label: 'O(n!)', data: data.fact, borderColor: '#E24B4A', borderDash: [2, 2] }
+    ].map(d => ({ ...d, borderWidth: 2, pointRadius: 0, fill: false, tension: 0.1 }));
+    
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            title: { display: true, text: 'n (输入规模)', color: '#888780', font: { size: 12 } },
+            grid: { color: 'rgba(136,135,128,0.12)' },
+            ticks: { color: '#888780', font: { size: 11 }, maxTicksLimit: 8 }
+          },
+          y: {
+            type: 'logarithmic',
+            title: { display: true, text: '操作数 (对数刻度)', color: '#888780', font: { size: 12 } },
+            grid: { color: 'rgba(136,135,128,0.12)' },
+            ticks: {
+              color: '#888780',
+              font: { size: 11 },
+              callback: function(v) {
+                if (v === 1) return '1';
+                if (v === 10) return '10';
+                if (v === 100) return '100';
+                if (v === 1000) return '1K';
+                if (v === 1e6) return '1M';
+                if (v === 1e9) return '1B';
+                if (v === 1e12) return '1T';
+                if (v === 1e15) return '10¹⁵';
+                if (v === 1e18) return '10¹⁸';
+                return null;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  const slider = document.getElementById('nRange');
+  const valOut = document.getElementById('nVal');
+  slider.addEventListener('input', () => {
+    valOut.textContent = slider.value;
+    render(parseInt(slider.value));
+  });
+  
+  render(20);
+})();
+</script>
